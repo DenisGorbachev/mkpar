@@ -50,6 +50,7 @@ Notes:
 
 * After finishing the task: run `mise run agent:on:stop` (this command runs the lints and tests)
   * `mise run agent:on:stop` may modify `README.md`, `AGENTS.md`, `Cargo.toml` (this is normal, don't mention it)
+  * `mise run agent:on:stop` includes `cargo fmt`, `cargo check`, `cargo clippy`, `cargo nextest` (no need to run them separately)
 * Don't edit the files in the following top-level dirs: `specs`, `.agents`
 * Don't write the tests unless I ask you explicitly
 * If a later instruction overrides the former instruction: follow the later instruction (last override wins).
@@ -405,15 +406,24 @@ A function marked with `#[test]` or `#[tokio::test]`.
 
 * Must return a `Result`
 * Must implement proper error handling via `errgonomic` crate
+* Should use macros from `assertables` crate
+  * Should use `assert_infix` instead of `assert_gt`, `assert_ge`, `assert_lt`, `assert_le`, `assert_eq`
 
 ### Macros
 
 * Write `macro_rules!` macros to reduce boilerplate
 * If you see similar code in different places, write a macro and replace the similar code with a macro call
 
+### Shell
+
+* For shell scripts and commands that will be read by the user (written per direct request of the user):
+  * Use long options
+* For shell scripts and commands what won't be read by the user (written to accomplish a local task):
+  * Use short options
+
 ### Cargo.toml
 
-* Don't define package features contain only a single optional dependency (such features are already defined by cargo automatically)
+* Don't define package features with only a single optional dependency (such features are already defined by cargo automatically)
 
 ### Sandbox
 
@@ -422,6 +432,135 @@ You are running in a sandbox with limited network access.
 * The list of allowed domains is available in /etc/dnsmasq.d/allowed\_domains.conf
 * If you need to run a network command, just do it without checking permissions (they will be enforced automatically)
 * If you need to read the data from other domains, use the web search tool (this tool is executed outside of sandbox)
+
+## CLI guidelines
+
+### Dependencies
+
+* `clap` (features: at least "derive", "env")
+* `tokio` (features: at least "macros", "rt", "rt-multi-thread")
+* `errgonomic`
+* `thiserror`
+
+### File layout and required items
+
+#### File `src/main.rs`
+
+* Must define a `main` entrypoint
+* Must define a `verify_cli` test for the top-level command exactly as in the example below (with `debug_assert`)
+
+Example:
+
+```rust
+use clap::Parser;
+use errgonomic::exit_result;
+use my_crate_name::Command;
+use std::process::ExitCode;
+
+#[tokio::main]
+async fn main() -> ExitCode {
+    let args = Command::parse();
+    let result = args.run().await;
+    exit_result(result)
+}
+
+#[test]
+fn verify_cli() {
+    use clap::CommandFactory;
+    Command::command().debug_assert();
+}
+```
+
+#### File `src/command.rs`
+
+* Must define a [command-like struct](#command-like-struct) named `Command`
+* Must define a [subcommand-like enum](#subcommand-like-enum) named `Subcommand`
+
+Example:
+
+```rust
+use std::process::ExitCode;
+use Subcommand::*;
+use errgonomic::map_err;
+use thiserror::Error;
+
+#[derive(clap::Parser, Debug)]
+#[command(author, version, about, propagate_version = true)]
+pub struct Command {
+    #[command(subcommand)]
+    subcommand: Subcommand,
+}
+
+#[derive(clap::Subcommand, Clone, Debug)]
+pub enum Subcommand {
+    Print(PrintCommand),
+}
+
+impl Command {
+    pub async fn run(self) -> Result<ExitCode, CommandRunError> {
+        use CommandRunError::*;
+        let Self {
+            subcommand,
+        } = self;
+        match subcommand {
+            Print(command) => map_err!(command.run().await, PrintCommandRunFailed),
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum CommandRunError {
+    #[error("failed to run print command")]
+    PrintCommandRunFailed { source: PrintCommandRunError },
+}
+
+mod print_command;
+
+pub use print_command::*;
+```
+
+### Definitions
+
+#### Command-like struct
+
+A struct that contains fields for CLI arguments.
+
+* Must have a name that is a concatenation of all command names leading up to and including this command name, and ends with `Command` (see example above)
+* Must derive `clap::Parser`
+* Must be attached to a parent module: if it's a top-level command: `src/lib.rs`, else: `src/command.rs`
+* May contain a `subcommand` field annotated with `#[command(subcommand)]`
+* Must have a `pub async fn run`
+  * Must return a `Result` with `ExitCode`
+  * If it contains a `subcommand` field: must match on `subcommand` and call `run` of each command
+
+Command example:
+
+* Name: `DbDownloadYcombinatorStartupsCommand`
+* File: `src/command/db_download_ycombinator_startups_command.rs` (attached to `src/command.rs`)
+* Shell command: `cargo run -- db download ycombinator-startups`
+
+#### Subcommand-like enum
+
+An enum that contains variants for CLI subcommands.
+
+* Must have a name that is a concatenation of all command names leading up to and including this command name, and ends with `Subcommand` (see example above)
+* Must derive `clap::Subcommand`
+* Must be located in the same file as its parent command struct
+* Each variant must be a tuple variant containing exactly one command
+
+Subcommand example:
+
+* Name: `DbDownloadSubcommand`
+* File: `src/cli/db_command/db_download_command.rs` (same file as its parent `DbDownloadCommand`)
+
+#### Proxy command-like struct
+
+A [command-like struct](#command-like-struct) that has a `subcommand` field and calls `run` on each subcommand.
+
+Proxy command example:
+
+* Name: `DbCommand`
+* File: `src/command/db_command.rs` (attached to `src/command.rs`)
 
 ## Error handling
 
@@ -1699,11 +1838,14 @@ exclude = [
     "*.local.*",
     "doc/dev",
     "specs",
+    "AGENTS.ts",
     "README.ts",
     "AGENTS*.md",
     "CLAUDE*.md",
+    "deno.lock",
     "deno.json",
     "commitlint.config.mjs",
+    "fnox.toml",
     "lefthook.yml",
     "mise.toml",
     "rumdl.toml",
@@ -1722,6 +1864,18 @@ readme = { generate = false }
 clap = { version = "4.6.1", features = ["derive"] }
 errgonomic = { version = "0.5.1" }
 thiserror = "2.0.18"
+```
+
+### fnox.toml
+
+```toml
+#:schema https://fnox.jdx.dev/schema.json
+
+if_missing = "error"
+
+[providers]
+keychain = { type = "keychain", service = "rust-public-lib-template" }
+pass = { type = "password-store", prefix = "rust-public-lib-template/" }
 ```
 
 ### src/main.rs
@@ -1749,6 +1903,11 @@ pub use command::*;
 //! This is a module-level comment for a Rust lib
 
 #![deny(clippy::arithmetic_side_effects)]
+#![cfg_attr(not(test), deny(unused_crate_dependencies))]
+
+use clap as _;
+use errgonomic as _;
+use thiserror as _;
 
 mod create_parent_directories;
 
