@@ -1874,8 +1874,8 @@ thiserror = "2.0.18"
 if_missing = "error"
 
 [providers]
-keychain = { type = "keychain", service = "rust-public-lib-template" }
-pass = { type = "password-store", prefix = "rust-public-lib-template/" }
+keychain = { type = "keychain", service = "mkpar" }
+pass = { type = "password-store", prefix = "mkpar/" }
 ```
 
 ### src/main.rs
