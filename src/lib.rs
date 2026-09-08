@@ -1,4 +1,6 @@
-//! This is a module-level comment for a Rust lib
+//! `mkpar <PATH>` creates all missing parent directories for the given path.
+//!
+//! For example, `mkpar logs/app/output.log` creates `logs/app` without creating or modifying `output.log`.
 
 mod create_parent_directories;
 
