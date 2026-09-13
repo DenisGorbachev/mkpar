@@ -537,7 +537,7 @@ Examples:
 
 A package that has a remote whose name contains `public` or `pre-public` and ends with `template`.
 
-### Project info
+## Project info
 
 ### `git remote`
 
@@ -809,7 +809,7 @@ workspace = true
 #subtype = { git = "https://github.com/DenisGorbachev/subtype" }
 ```
 
-#### src/lib.rs
+### src/lib.rs
 
 ```rust
 //! This is a module-level comment for a Rust lib
