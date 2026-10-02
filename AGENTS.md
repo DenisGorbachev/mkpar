@@ -2325,8 +2325,8 @@ rust-version = "1.85.0"
 license = "Apache-2.0 OR MIT"
 homepage = "https://github.com/DenisGorbachev/mkpar"
 repository = "https://github.com/DenisGorbachev/mkpar"
-keywords = []
-categories = []
+keywords = ["cli", "filesystem", "directory", "mkdir", "path"]
+categories = ["command-line-utilities", "filesystem"]
 exclude = [
     ".*",
     "*.local.*",
@@ -2368,6 +2368,7 @@ name = "mkpar"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+description = "Create missing parent directories for a path"
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true

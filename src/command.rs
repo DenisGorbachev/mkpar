@@ -6,7 +6,7 @@ use std::{io, path::PathBuf};
 use thiserror::Error;
 
 #[derive(Debug, Parser)]
-#[command(about = "Create missing parent directories for a path")]
+#[command(author, version, about, propagate_version = true, flatten_help = true, disable_help_subcommand = true)]
 pub struct Command {
     #[arg(value_name = "PATH", help = "Path whose parent directories should be created")]
     pub path: PathBuf,
