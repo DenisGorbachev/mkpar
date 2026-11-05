@@ -17,7 +17,6 @@ exclude = [
     "specs",
     "AGENTS.ts",
     "CargoMetadata.ts",
-    "GeneratedFile.ts",
     "README.ts",
     "AGENTS*.md",
     "deno.lock",
@@ -72,5 +71,5 @@ workspace = true
 
 [dependencies]
 clap = { version = "4.6.1", features = ["derive"] }
-errgonomic = { version = "0.5.3" }
+errgonomic = { version = "0.6.0" }
 thiserror = "2.0.18"
